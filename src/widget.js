@@ -1,5 +1,7 @@
 // Replybek chat widget. Usage:
 //   <script src=".../replybek-widget.js" data-key="pk_…" data-api="https://api.example.com" defer></script>
+// Optional: data-language="uz|ru|en"; data-launcher="none" hides the floating button, and the page
+// opens the chat with window.Replybek.open() (also .close(), .toggle()) after "replybek:ready".
 // Everything renders inside a shadow root, so the host page's CSS can't affect it (and vice versa).
 // Visitor text is only ever inserted with textContent, never as HTML.
 import css from "./widget.css?inline";
@@ -15,6 +17,8 @@ import css from "./widget.css?inline";
   // When loaded inside the business system's own page (data-inpage), the widget can run the AI's
   // tool requests here, with the user's own session. INPAGE is the origin those requests go to.
   const INPAGE = script && (script.dataset.inpage !== undefined) ? location.origin : null;
+  // data-launcher="none": no floating button; the page opens the chat itself with window.Replybek.open().
+  const NO_LAUNCHER = script?.dataset.launcher === "none";
 
   // ───── Words ─────
   // The widget speaks the page's language when it's one we have; English otherwise.
@@ -420,8 +424,11 @@ import css from "./widget.css?inline";
   }
 
   // ───── Behaviour ─────
+  let opener = null; // what had focus before the page opened the chat, to return to
   function toggle(force) {
+    const was = open;
     open = force === undefined ? !open : force;
+    if (open && !was) opener = document.activeElement;
     panel.hidden = !open;
     launcher.setAttribute("aria-expanded", String(open));
     launcher.setAttribute("aria-label", open ? t("minimize") : t("chatWith", { name: config.display_name }));
@@ -432,7 +439,8 @@ import css from "./widget.css?inline";
       badge.hidden = true;
       render();
       setTimeout(() => input.focus(), 30);
-    } else launcher.focus();
+    } else if (!NO_LAUNCHER) launcher.focus();
+    else if (was && opener && opener.focus) opener.focus();
     schedulePoll();
   }
 
@@ -446,6 +454,13 @@ import css from "./widget.css?inline";
   function absorb(r) {
     const known = new Set(messages.map((m) => m.id));
     const fresh = r.messages.filter((m) => !known.has(m.id));
+    // A live update can bring the server's copy of a message while it's still being sent: that copy
+    // replaces the one shown meanwhile, so the message never appears twice.
+    for (const m of fresh) {
+      if (m.role !== "visitor") continue;
+      const i = messages.findIndex((x) => String(x.id).startsWith("tmp-") && x.body === (m.body || "") && (x.attachments || []).length === (m.attachments || []).length);
+      if (i >= 0) messages.splice(i, 1);
+    }
     messages = messages.concat(fresh);
     status = r.status;
     if (!open && fresh.some((m) => m.role !== "visitor")) {
@@ -792,8 +807,12 @@ import css from "./widget.css?inline";
     }
     brand.hidden = !config.branding;
     launcher.setAttribute("aria-label", t("chatWith", { name: config.display_name }));
+    launcher.hidden = NO_LAUNCHER;
     root.append(panel, launcher);
     document.body.append(host);
+    // The page can open the chat from its own button.
+    window.Replybek = { open: () => toggle(true), close: () => toggle(false), toggle: () => toggle() };
+    window.dispatchEvent(new CustomEvent("replybek:ready"));
     // Pick up an earlier conversation from this browser.
     if (session.conversation_id) {
       await poll();
