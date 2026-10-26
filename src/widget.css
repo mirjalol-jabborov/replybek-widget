@@ -84,12 +84,13 @@ a.src-name:hover { text-decoration: underline; text-underline-offset: 2px; }
 .file-doc { display: flex; align-items: center; gap: 10px; width: 240px; max-width: 100%; padding: 8px 10px 8px 8px; border: 1px solid #e8e8e6; border-radius: 14px; background: #fff; }
 .file-doc:hover { border-color: #c9c9c4; }
 .file-broken { font-size: 12px; color: #868b93; padding: 8px 10px; }
-.links { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 0 4px; font-size: 12px; color: #868b93; min-height: 20px; }
-.left { display: inline-flex; gap: 14px; align-items: center; min-width: 0; }
+/* Long labels (Uzbek, Russian) wrap: "Powered by" moves to the next line, never under the links. */
+.links { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 12px; padding: 0 4px; font-size: 12px; color: #868b93; min-height: 20px; }
+.left { display: inline-flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
 .human, .linkish { border: 0; background: none; padding: 2px 0; font-size: 12px; font-weight: 600; color: #111215; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; flex: none; }
 .linkish { font-weight: 500; color: #4a4f57; }
 .human:hover, .linkish:hover { text-decoration: underline; text-underline-offset: 2px; }
-.brand { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.brand { margin-left: auto; white-space: nowrap; }
 /* Phones: the open chat takes the whole screen; 16px text so iOS doesn't zoom into the input. */
 @media (max-width: 480px) {
   :host(.is-open) { inset: 0; right: 0; bottom: 0; gap: 0; }
