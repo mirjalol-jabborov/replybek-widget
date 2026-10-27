@@ -2,7 +2,8 @@
 //   <script src=".../replybek-widget.js" data-key="pk_…" data-api="https://api.example.com" defer></script>
 // Optional: data-language="uz|ru|en"; data-launcher="none" hides the floating button, and the page
 // opens the chat with window.Replybek.open() (also .close(), .toggle()) after "replybek:ready".
-// window.Replybek.identify({ name, email }) names a signed-in visitor; .reset() forgets the chat
+// window.Replybek.identify({ user_id, name, email, phone, avatar, company: { id, name, plan,
+// website }, attributes: { … } }) tells the team who a signed-in visitor is; .reset() forgets the chat
 // on sign-out; the "replybek:unread" event ({ detail: { count } }) feeds a page's own badge.
 // Everything renders inside a shadow root, so the host page's CSS can't affect it (and vice versa).
 // Visitor text is only ever inserted with textContent, never as HTML.
@@ -436,6 +437,38 @@ import css from "./widget.css?inline";
     if (open) markSeen();
   }
 
+  // ───── Who the visitor is ─────
+  // What identify() accepts, trimmed to what the API takes; anything invalid is left out, so a
+  // page's mistake never stops the chat from starting.
+  const str = (v, max) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined);
+  const PHOTO = /^(https:\/\/[^\s"'<>]{1,2000}|data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+)$/;
+  function visitorInfo(info) {
+    const email = str(info.email, 200);
+    const avatar = typeof info.avatar === "string" && info.avatar.length <= 300000 && PHOTO.test(info.avatar) ? info.avatar : undefined;
+    const c = info.company && typeof info.company === "object" ? info.company : null;
+    const company = c ? clean({ id: str(c.id == null ? undefined : String(c.id), 100), name: str(c.name, 120), plan: str(c.plan, 60), website: str(c.website, 200) }) : undefined;
+    let attributes;
+    if (info.attributes && typeof info.attributes === "object") {
+      const kept = Object.entries(info.attributes)
+        .filter(([k, v]) => k.trim() && k.length <= 60 && (v === null || typeof v === "number" || typeof v === "boolean" || typeof v === "string"))
+        .slice(0, 30)
+        .map(([k, v]) => [k.trim(), typeof v === "string" ? v.slice(0, 500) : v]);
+      if (kept.length) attributes = Object.fromEntries(kept);
+    }
+    return clean({
+      user_id: str(info.user_id == null ? undefined : String(info.user_id), 100),
+      name: str(info.name, 80),
+      email: email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? email : undefined,
+      phone: str(info.phone, 40),
+      avatar,
+      company: company && Object.keys(company).length ? company : undefined,
+      attributes,
+    });
+  }
+  function clean(o) {
+    return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+  }
+
   // ───── Read and unread ─────
   // The page hears the unread count (for its own chat button, with data-launcher="none").
   const announceUnread = () => window.dispatchEvent(new CustomEvent("replybek:unread", { detail: { count: unseen } }));
@@ -479,7 +512,9 @@ import css from "./widget.css?inline";
   async function ensureConversation() {
     if (session.conversation_id) return;
     // After "Start a new chat", the new conversation is linked to the one left behind.
-    const r = await call("POST", "/conversations", { page: location.pathname.slice(0, 400), ...(who || {}), ...(session.previous ? { previous: session.previous } : {}) });
+    const base = { page: location.pathname.slice(0, 400), ...(session.previous ? { previous: session.previous } : {}) };
+    // If the API refuses what the page said about the visitor, the chat still starts without it.
+    const r = await call("POST", "/conversations", { ...base, ...(who || {}) }).catch((e) => (e.status === 400 && who ? call("POST", "/conversations", base) : Promise.reject(e)));
     session = { conversation_id: r.conversation_id, visitor_token: r.visitor_token };
     save(session);
   }
@@ -871,11 +906,9 @@ import css from "./widget.css?inline";
       close: () => toggle(false),
       toggle: () => toggle(),
       unread: () => unseen,
-      // A signed-in page says who the visitor is; the team sees their name and email.
+      // A signed-in page says who the visitor is; the team sees it in the Inbox.
       identify(info = {}) {
-        const name = typeof info.name === "string" ? info.name.trim().slice(0, 80) : "";
-        const email = typeof info.email === "string" && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(info.email.trim()) ? info.email.trim().slice(0, 200) : "";
-        who = Object.fromEntries(Object.entries({ name, email }).filter(([, v]) => v));
+        who = visitorInfo(info);
         if (session.conversation_id && Object.keys(who).length) call("POST", `/conversations/${session.conversation_id}/visitor`, who, session.visitor_token).catch(() => {});
       },
       // Signing out: forget this chat in this browser, so the next person doesn't see it.

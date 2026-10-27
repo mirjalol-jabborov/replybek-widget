@@ -20,6 +20,17 @@ The chat bubble businesses add to their website with one tag:
 (copy it from Settings › Widget in the dashboard). If the agent limits its allowed websites,
 add `http://localhost:5174`.
 
+## The page's own button and signed-in visitors
+
+- `data-launcher="none"` hides the round button; the page calls `window.Replybek.open()`
+  (also `.close()`, `.toggle()`) after the `replybek:ready` event. `replybek:unread`
+  (`{ detail: { count } }`) and `Replybek.unread()` give the unread replies for the page's badge.
+- `Replybek.identify({ user_id, name, email, phone, avatar, company: { id, name, plan, website },
+  attributes })` tells the team who a signed-in visitor is (shown in the Inbox, searchable by email,
+  user ID and company). Invalid values are dropped, never blocking the chat. `avatar` is an https
+  link or a data: PNG/JPEG/WebP/GIF; `attributes` holds up to 30 short values.
+- `Replybek.reset()` forgets the chat in this browser, for signing out.
+
 ## Languages and host authentication
 
 Starter questions come from the admin's saved translations. Set `data-language="uz"` (or `ru` / `en`) to override the site's `<html lang>` and browser language. Missing translations use the agent's default language. Questions are never generated on chat open.
