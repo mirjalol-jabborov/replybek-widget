@@ -34,7 +34,7 @@ import css from "./widget.css?inline";
       signInTo: "Sign in to {name}", signInNote: "You'll sign in on their page. Your password isn't shared with this chat.", signIn: "Sign in",
       pleaseConfirm: "Please confirm", confirm: "Confirm", cancel: "Cancel",
       confirmed: "Confirmed", cancelled: "Cancelled", failed: "Didn't go through",
-      team: "{name} team", typing: "AI agent is typing",
+      team: "{name} team", typing: "AI agent is typing", teamTyping: "{name} is typing",
       handoff: "A teammate has been asked to join. They'll reply here; you can keep this page open or come back later.",
       replying: "A teammate is replying", waiting: "Waiting for the team", agent: "{name} · AI agent",
       errSend: "Couldn't send your message. Check your connection and try again.",
@@ -54,7 +54,7 @@ import css from "./widget.css?inline";
       signInTo: "{name} tizimiga kirish", signInNote: "Ularning sahifasida kirasiz. Parolingiz bu chatga berilmaydi.", signIn: "Kirish",
       pleaseConfirm: "Tasdiqlang", confirm: "Tasdiqlash", cancel: "Bekor qilish",
       confirmed: "Tasdiqlandi", cancelled: "Bekor qilindi", failed: "Amalga oshmadi",
-      team: "{name} jamoasi", typing: "AI agent yozmoqda",
+      team: "{name} jamoasi", typing: "AI agent yozmoqda", teamTyping: "{name} yozmoqda",
       handoff: "Xodimga xabar berildi. U shu yerda javob beradi: sahifani ochiq qoldirishingiz yoki keyinroq qaytishingiz mumkin.",
       replying: "Xodim javob bermoqda", waiting: "Jamoa kutilmoqda", agent: "{name} · AI agent",
       errSend: "Xabar yuborilmadi. Internetni tekshirib, qayta urinib koʻring.",
@@ -74,7 +74,7 @@ import css from "./widget.css?inline";
       signInTo: "Вход в {name}", signInNote: "Вы войдёте на их странице. Пароль не передаётся в этот чат.", signIn: "Войти",
       pleaseConfirm: "Подтвердите", confirm: "Подтвердить", cancel: "Отмена",
       confirmed: "Подтверждено", cancelled: "Отменено", failed: "Не получилось",
-      team: "Команда {name}", typing: "ИИ-агент печатает",
+      team: "Команда {name}", typing: "ИИ-агент печатает", teamTyping: "{name} печатает",
       handoff: "Мы позвали сотрудника. Он ответит здесь: можно оставить страницу открытой или вернуться позже.",
       replying: "Отвечает сотрудник", waiting: "Ждём команду", agent: "{name} · ИИ-агент",
       errSend: "Не удалось отправить сообщение. Проверьте интернет и попробуйте ещё раз.",
@@ -171,6 +171,8 @@ import css from "./widget.css?inline";
   let open = false;
   let sending = false;
   let unseen = 0;
+  let teamTyping = null;     // { name, until }: a teammate is writing a reply
+  let typedAt = 0;           // when we last told the team the visitor is typing
   let pollTimer = null;
   let thinking = false;      // the AI is working (answering with tools, or finishing a confirmed change)
   let activeTimer = null;    // the fast poll that runs while thinking
@@ -252,7 +254,14 @@ import css from "./widget.css?inline";
     )
   );
   const canSend = () => (input.value.trim() || pending) && !sending;
-  input.addEventListener("input", () => (sendBtn.disabled = !canSend()));
+  input.addEventListener("input", () => {
+    sendBtn.disabled = !canSend();
+    // Tell the team the visitor is typing: at most every 3 s, only in a chat that exists.
+    if (session.conversation_id && input.value.trim() && Date.now() - typedAt > 3000) {
+      typedAt = Date.now();
+      call("POST", `/conversations/${session.conversation_id}/typing`, {}, session.visitor_token).catch(() => {});
+    }
+  });
   fileInput.addEventListener("change", () => {
     if (fileInput.files[0]) choose(fileInput.files[0]);
     fileInput.value = "";
@@ -405,7 +414,12 @@ import css from "./widget.css?inline";
       );
     }
     const waiting = status === "needs_human" || status === "human";
-    if (sending || thinking) list.append(h("div", { class: "typing", role: "status", "aria-label": t("typing") }, h("span"), h("span"), h("span")));
+    // The AI's dots only while the AI is answering; a teammate's own, with their name.
+    if (thinking || (sending && !waiting)) list.append(h("div", { class: "typing", role: "status", "aria-label": t("typing") }, h("span"), h("span"), h("span")));
+    else if (teamTyping && teamTyping.until > Date.now()) {
+      const label = t("teamTyping", { name: teamTyping.name || t("team", { name: config.display_name }) });
+      list.append(h("div", { class: "msg bot team" }, h("div", { class: "who", text: label }), h("div", { class: "typing", role: "status", "aria-label": label }, h("span"), h("span"), h("span"))));
+    }
     const last = messages.filter((m) => m.role === "ai").pop();
     if (!waiting && !sending && last && last.kind === "fallback" && config.handoff) {
       list.append(h("div", { class: "chips" }, h("button", { class: "chip", type: "button", onClick: () => askHuman() }, t("person"))));
@@ -416,6 +430,18 @@ import css from "./widget.css?inline";
     newChat.hidden = !session.conversation_id || !messages.length;
     sendBtn.disabled = !canSend();
     list.scrollTop = list.scrollHeight;
+    if (open) markSeen();
+  }
+
+  // ───── Read and unread ─────
+  // The newest reply the visitor has seen, kept with the conversation in this browser, so a reload
+  // doesn't count replies they already read.
+  const replies = () => messages.filter((m) => m.role !== "visitor" && !String(m.id).startsWith("tmp-"));
+  function markSeen() {
+    const last = replies().pop();
+    if (!last || (session.seen && session.seen >= last.created_at)) return;
+    session.seen = last.created_at;
+    save(session);
   }
 
   function showError(text) {
@@ -446,7 +472,8 @@ import css from "./widget.css?inline";
 
   async function ensureConversation() {
     if (session.conversation_id) return;
-    const r = await call("POST", "/conversations", { page: location.pathname.slice(0, 400) });
+    // After "Start a new chat", the new conversation is linked to the one left behind.
+    const r = await call("POST", "/conversations", { page: location.pathname.slice(0, 400), ...(session.previous ? { previous: session.previous } : {}) });
     session = { conversation_id: r.conversation_id, visitor_token: r.visitor_token };
     save(session);
   }
@@ -463,8 +490,10 @@ import css from "./widget.css?inline";
     }
     messages = messages.concat(fresh);
     status = r.status;
-    if (!open && fresh.some((m) => m.role !== "visitor")) {
-      unseen += fresh.filter((m) => m.role !== "visitor").length;
+    if (fresh.some((m) => m.role === "human")) teamTyping = null;
+    const unread = fresh.filter((m) => m.role !== "visitor" && !(session.seen && m.created_at <= session.seen));
+    if (!open && unread.length) {
+      unseen += unread.length;
       badge.textContent = String(unseen);
       badge.hidden = false;
     }
@@ -747,6 +776,18 @@ import css from "./widget.css?inline";
           while ((i = buf.indexOf("\n\n")) >= 0) {
             const block = buf.slice(0, i);
             buf = buf.slice(i + 2);
+            // A teammate typing: show it for a few seconds, nothing to fetch.
+            if (/^event: typing$/m.test(block)) {
+              try {
+                const d = JSON.parse((/^data: (.*)$/m.exec(block) || [])[1] || "{}");
+                teamTyping = { name: d.name, until: Date.now() + 6000 };
+                if (open) render();
+                setTimeout(() => open && render(), 6100);
+              } catch {
+                // not ours
+              }
+              continue;
+            }
             // "ready" (fetch whatever changed while connecting) or a change: either way, fetch.
             if (!/^(event|data):/m.test(block)) continue;
             if (!liveUp) {
@@ -779,7 +820,14 @@ import css from "./widget.css?inline";
     status = "ai";
   }
   function restart() {
+    // The team sees that the visitor left this chat for a new one.
+    const previous = session.conversation_id ? { id: session.conversation_id, token: session.visitor_token } : null;
+    if (previous) call("POST", `/conversations/${previous.id}/leave`, {}, previous.token).catch(() => {});
     restartSilently();
+    if (previous) {
+      session = { previous };
+      save(session);
+    }
     clearTimeout(pollTimer);
     render();
     input.focus();
@@ -818,5 +866,13 @@ import css from "./widget.css?inline";
       await poll();
       schedulePoll();
     }
+    // The team can see the visitor is here: a check-in now, every 30 s while the page is visible,
+    // and when they come back to it.
+    const checkIn = () => {
+      if (session.conversation_id && document.visibilityState === "visible") call("POST", `/conversations/${session.conversation_id}/presence`, {}, session.visitor_token).catch(() => {});
+    };
+    checkIn();
+    setInterval(checkIn, 30000);
+    document.addEventListener("visibilitychange", checkIn);
   })();
 })();
