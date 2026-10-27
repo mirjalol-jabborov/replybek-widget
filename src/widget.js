@@ -2,6 +2,8 @@
 //   <script src=".../replybek-widget.js" data-key="pk_…" data-api="https://api.example.com" defer></script>
 // Optional: data-language="uz|ru|en"; data-launcher="none" hides the floating button, and the page
 // opens the chat with window.Replybek.open() (also .close(), .toggle()) after "replybek:ready".
+// window.Replybek.identify({ name, email }) names a signed-in visitor; .reset() forgets the chat
+// on sign-out; the "replybek:unread" event ({ detail: { count } }) feeds a page's own badge.
 // Everything renders inside a shadow root, so the host page's CSS can't affect it (and vice versa).
 // Visitor text is only ever inserted with textContent, never as HTML.
 import css from "./widget.css?inline";
@@ -172,6 +174,7 @@ import css from "./widget.css?inline";
   let sending = false;
   let unseen = 0;
   let teamTyping = null;     // { name, until }: a teammate is writing a reply
+  let who = null;            // { name, email } from window.Replybek.identify() on a signed-in page
   let typedAt = 0;           // when we last told the team the visitor is typing
   let pollTimer = null;
   let thinking = false;      // the AI is working (answering with tools, or finishing a confirmed change)
@@ -434,6 +437,8 @@ import css from "./widget.css?inline";
   }
 
   // ───── Read and unread ─────
+  // The page hears the unread count (for its own chat button, with data-launcher="none").
+  const announceUnread = () => window.dispatchEvent(new CustomEvent("replybek:unread", { detail: { count: unseen } }));
   // The newest reply the visitor has seen, kept with the conversation in this browser, so a reload
   // doesn't count replies they already read.
   const replies = () => messages.filter((m) => m.role !== "visitor" && !String(m.id).startsWith("tmp-"));
@@ -463,6 +468,7 @@ import css from "./widget.css?inline";
     if (open) {
       unseen = 0;
       badge.hidden = true;
+      announceUnread();
       render();
       setTimeout(() => input.focus(), 30);
     } else if (!NO_LAUNCHER) launcher.focus();
@@ -473,7 +479,7 @@ import css from "./widget.css?inline";
   async function ensureConversation() {
     if (session.conversation_id) return;
     // After "Start a new chat", the new conversation is linked to the one left behind.
-    const r = await call("POST", "/conversations", { page: location.pathname.slice(0, 400), ...(session.previous ? { previous: session.previous } : {}) });
+    const r = await call("POST", "/conversations", { page: location.pathname.slice(0, 400), ...(who || {}), ...(session.previous ? { previous: session.previous } : {}) });
     session = { conversation_id: r.conversation_id, visitor_token: r.visitor_token };
     save(session);
   }
@@ -496,6 +502,7 @@ import css from "./widget.css?inline";
       unseen += unread.length;
       badge.textContent = String(unseen);
       badge.hidden = false;
+      announceUnread();
     }
   }
 
@@ -859,7 +866,28 @@ import css from "./widget.css?inline";
     root.append(panel, launcher);
     document.body.append(host);
     // The page can open the chat from its own button.
-    window.Replybek = { open: () => toggle(true), close: () => toggle(false), toggle: () => toggle() };
+    window.Replybek = {
+      open: () => toggle(true),
+      close: () => toggle(false),
+      toggle: () => toggle(),
+      unread: () => unseen,
+      // A signed-in page says who the visitor is; the team sees their name and email.
+      identify(info = {}) {
+        const name = typeof info.name === "string" ? info.name.trim().slice(0, 80) : "";
+        const email = typeof info.email === "string" && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(info.email.trim()) ? info.email.trim().slice(0, 200) : "";
+        who = Object.fromEntries(Object.entries({ name, email }).filter(([, v]) => v));
+        if (session.conversation_id && Object.keys(who).length) call("POST", `/conversations/${session.conversation_id}/visitor`, who, session.visitor_token).catch(() => {});
+      },
+      // Signing out: forget this chat in this browser, so the next person doesn't see it.
+      reset() {
+        if (open) toggle(false);
+        restartSilently();
+        who = null;
+        unseen = 0;
+        badge.hidden = true;
+        announceUnread();
+      },
+    };
     window.dispatchEvent(new CustomEvent("replybek:ready"));
     // Pick up an earlier conversation from this browser.
     if (session.conversation_id) {
