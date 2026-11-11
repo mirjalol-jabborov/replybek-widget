@@ -38,6 +38,7 @@ import css from "./widget.css?inline";
       pleaseConfirm: "Please confirm", confirm: "Confirm", cancel: "Cancel",
       confirmed: "Confirmed", cancelled: "Cancelled", failed: "Didn't go through",
       team: "{name} team", typing: "AI agent is typing", teamTyping: "{name} is typing",
+      steps: { search: "Looking through our help docs…", tool: "Checking our system…", confirm: "Preparing the change for you to confirm…", writing: "Writing the answer…" },
       handoff: "A teammate has been asked to join. They'll reply here; you can keep this page open or come back later.",
       replying: "A teammate is replying", waiting: "Waiting for the team", agent: "{name} · AI agent",
       errSend: "Couldn't send your message. Check your connection and try again.",
@@ -58,6 +59,7 @@ import css from "./widget.css?inline";
       pleaseConfirm: "Tasdiqlang", confirm: "Tasdiqlash", cancel: "Bekor qilish",
       confirmed: "Tasdiqlandi", cancelled: "Bekor qilindi", failed: "Amalga oshmadi",
       team: "{name} jamoasi", typing: "AI agent yozmoqda", teamTyping: "{name} yozmoqda",
+      steps: { search: "Maʼlumotlarni qidiryapman…", tool: "Bazadan tekshiryapman…", confirm: "Tasdiqlash uchun tayyorlayapman…", writing: "Javob tayyorlayapman…" },
       handoff: "Xodimga xabar berildi. U shu yerda javob beradi: sahifani ochiq qoldirishingiz yoki keyinroq qaytishingiz mumkin.",
       replying: "Xodim javob bermoqda", waiting: "Jamoa kutilmoqda", agent: "{name} · AI agent",
       errSend: "Xabar yuborilmadi. Internetni tekshirib, qayta urinib koʻring.",
@@ -78,6 +80,7 @@ import css from "./widget.css?inline";
       pleaseConfirm: "Подтвердите", confirm: "Подтвердить", cancel: "Отмена",
       confirmed: "Подтверждено", cancelled: "Отменено", failed: "Не получилось",
       team: "Команда {name}", typing: "ИИ-агент печатает", teamTyping: "{name} печатает",
+      steps: { search: "Ищу в базе знаний…", tool: "Проверяю в базе…", confirm: "Готовлю изменение на подтверждение…", writing: "Готовлю ответ…" },
       handoff: "Мы позвали сотрудника. Он ответит здесь: можно оставить страницу открытой или вернуться позже.",
       replying: "Отвечает сотрудник", waiting: "Ждём команду", agent: "{name} · ИИ-агент",
       errSend: "Не удалось отправить сообщение. Проверьте интернет и попробуйте ещё раз.",
@@ -179,6 +182,11 @@ import css from "./widget.css?inline";
   let typedAt = 0;           // when we last told the team the visitor is typing
   let pollTimer = null;
   let thinking = false;      // the AI is working (answering with tools, or finishing a confirmed change)
+  let progress = null;       // what it's doing right now ("Checking our system…"), from the live stream
+  let progressAt = 0;        // when that step appeared: each stays at least STEP_MS, so quick ones can be read
+  let progressNext = null;
+  let progressTimer = null;
+  const STEP_MS = 800;
   let activeTimer = null;    // the fast poll that runs while thinking
   let live = null;           // the open live-updates request (an AbortController)
   let liveUp = false;        // events are flowing, so polling only backs them up
@@ -419,7 +427,14 @@ import css from "./widget.css?inline";
     }
     const waiting = status === "needs_human" || status === "human";
     // The AI's dots only while the AI is answering; a teammate's own, with their name.
-    if (thinking || (sending && !waiting)) list.append(h("div", { class: "typing", role: "status", "aria-label": t("typing") }, h("span"), h("span"), h("span")));
+    if (!thinking && !sending) {
+      progress = progressNext = null;
+      clearTimeout(progressTimer);
+    }
+    if (thinking || (sending && !waiting)) {
+      const dots = h("div", { class: "typing", "aria-hidden": "true" }, h("span"), h("span"), h("span"));
+      list.append(h("div", { class: "working", role: "status", "aria-label": progress || t("typing") }, dots, progress ? h("span", { class: "step", text: progress }) : null));
+    }
     else if (teamTyping && teamTyping.until > Date.now()) {
       const label = t("teamTyping", { name: teamTyping.name || t("team", { name: config.display_name }) });
       list.append(h("div", { class: "msg bot team" }, h("div", { class: "who", text: label }), h("div", { class: "typing", role: "status", "aria-label": label }, h("span"), h("span"), h("span"))));
@@ -555,6 +570,7 @@ import css from "./widget.css?inline";
     const file = pending;
     if ((!q && !file) || sending) return;
     sending = true;
+    progress = null;
     input.value = "";
     if (file) clearPending(true);
     // Show the visitor's message right away; the server's copy replaces it.
@@ -564,6 +580,9 @@ import css from "./widget.css?inline";
     render();
     try {
       await ensureConversation();
+      // A new chat's live stream is still connecting: give it a moment, so this answer's progress shows.
+      syncLive();
+      await liveReady(800);
       let body = { text: q };
       if (file) {
         body = new FormData();
@@ -802,6 +821,31 @@ import css from "./widget.css?inline";
     if (want && !live) listenLive();
     if (!want && live) stopLive();
   }
+  /** Shows what the AI is doing; a step that comes sooner than STEP_MS after the last one waits its turn. */
+  function showStep(text) {
+    const wait = progressAt + STEP_MS - Date.now();
+    if (progress && wait > 0) {
+      progressNext = text;
+      clearTimeout(progressTimer);
+      progressTimer = setTimeout(() => {
+        if (progressNext && (sending || thinking)) showStep(progressNext);
+        progressNext = null;
+      }, wait);
+      return;
+    }
+    progress = text;
+    progressAt = Date.now();
+    if (open) render();
+  }
+
+  /** Resolves once the live stream is up, or after `ms` either way. */
+  function liveReady(ms) {
+    const until = Date.now() + ms;
+    return new Promise((done) => {
+      const check = () => (liveUp || Date.now() > until ? done() : setTimeout(check, 50));
+      check();
+    });
+  }
   function stopLive() {
     if (live) live.abort();
     live = null;
@@ -827,6 +871,18 @@ import css from "./widget.css?inline";
           while ((i = buf.indexOf("\n\n")) >= 0) {
             const block = buf.slice(0, i);
             buf = buf.slice(i + 2);
+            // What the AI is doing: shown beside its dots until the answer arrives.
+            if (/^event: progress$/m.test(block)) {
+              try {
+                const d = JSON.parse((/^data: (.*)$/m.exec(block) || [])[1] || "{}");
+                const steps = STRINGS[LANG].steps || STRINGS.en.steps;
+                const text = (d.step === "tool" || d.step === "confirm") && d.label ? String(d.label).slice(0, 80) : steps && steps[d.step];
+                if (text && (sending || thinking)) showStep(text);
+              } catch {
+                // not ours
+              }
+              continue;
+            }
             // A teammate typing: show it for a few seconds, nothing to fetch.
             if (/^event: typing$/m.test(block)) {
               try {
