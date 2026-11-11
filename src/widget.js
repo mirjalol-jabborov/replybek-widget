@@ -425,6 +425,7 @@ import css from "./widget.css?inline";
     lock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
     clip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
     file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
+    restart: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
   };
   const icon = (name, size = 18) => {
     const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -516,11 +517,19 @@ import css from "./widget.css?inline";
   const attachBtn = h("button", { class: "attach", type: "button", "aria-label": t("attach"), title: t("attach"), onClick: () => fileInput.click() }, icon("clip", 18));
   const tray = h("div", { class: "tray", hidden: true });
   const humanBtn = h("button", { class: "human", type: "button", onClick: () => askHuman() }, icon("person", 13), t("person"));
-  const newChat = h("button", { class: "linkish", type: "button", hidden: true, onClick: () => restart() }, t("newChat"));
+  // An icon, so the footer stays one row in every language; its name shows on hover and to screen readers.
+  const newChat = h("button", { class: "linkish new-chat", type: "button", hidden: true, title: t("newChat"), "aria-label": t("newChat"), onClick: () => restart() }, icon("restart", 15));
   const status1 = h("span", { class: "sub-text" });
   const title = h("div", { class: "title" });
   const avatar = h("span", { class: "av", "aria-hidden": "true" });
-  const brand = h("span", { class: "brand" }, t("powered"));
+  // "Powered by Replybek" in the widget's language. Where the row is too narrow for it, only the
+  // name stays ("Replybek"), so the footer keeps one row and the name is never cut off.
+  const [poweredBefore, ...poweredAfter] = t("powered").split("Replybek");
+  const brand = h("span", { class: "brand", title: t("powered") }, h("span", { class: "brand-words", text: poweredBefore }), "Replybek", h("span", { class: "brand-words", text: poweredAfter.join("Replybek") }));
+  function fitBrand() {
+    brand.classList.remove("short");
+    if (!brand.hidden && brand.scrollWidth > brand.clientWidth + 1) brand.classList.add("short");
+  }
 
   panel.append(
     h(
@@ -734,6 +743,7 @@ import css from "./widget.css?inline";
     status1.textContent = waiting ? (status === "human" ? t("replying") : t("waiting")) : t("agent", { name: config.name });
     humanBtn.hidden = !config.handoff || waiting;
     newChat.hidden = !session.conversation_id || !messages.length;
+    fitBrand();
     sendBtn.disabled = !canSend();
     list.scrollTop = list.scrollHeight;
     if (open) markSeen();
@@ -1250,6 +1260,7 @@ import css from "./widget.css?inline";
       });
     }
     brand.hidden = !config.branding;
+    if (typeof ResizeObserver === "function") new ResizeObserver(fitBrand).observe(brand.parentElement);
     launcher.setAttribute("aria-label", t("chatWith", { name: config.display_name }));
     launcher.hidden = NO_LAUNCHER;
     root.append(panel, launcher);

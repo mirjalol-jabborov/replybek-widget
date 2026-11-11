@@ -89,12 +89,17 @@ a.src-name:hover { text-decoration: underline; text-underline-offset: 2px; }
 .file-doc:hover { border-color: #c9c9c4; }
 .file-broken { font-size: 12px; color: #868b93; padding: 8px 10px; }
 /* Long labels (Uzbek, Russian) wrap: "Powered by" moves to the next line, never under the links. */
-.links { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 12px; padding: 0 4px; font-size: 12px; color: #868b93; min-height: 20px; }
-.left { display: inline-flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+.links { display: flex; flex-wrap: nowrap; justify-content: space-between; align-items: center; gap: 4px 12px; padding: 0 4px; font-size: 12px; color: #868b93; min-height: 20px; }
+.left { display: inline-flex; flex-wrap: nowrap; gap: 6px; align-items: center; flex: none; }
 .human, .linkish { border: 0; background: none; padding: 2px 0; font-size: 12px; font-weight: 600; color: #111215; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; flex: none; }
 .linkish { font-weight: 500; color: #4a4f57; }
 .human:hover, .linkish:hover { text-decoration: underline; text-underline-offset: 2px; }
-.brand { margin-inline-start: auto; white-space: nowrap; }
+.new-chat { width: 24px; height: 24px; padding: 0; justify-content: center; border-radius: 6px; color: #868b93; }
+.new-chat:hover { background: #f4f4f2; color: #111215; text-decoration: none; }
+.new-chat:focus-visible { outline: 2px solid #2d5bd2; outline-offset: 1px; }
+/* Where the row is too narrow, the brand drops its words and keeps the name; the actions never shrink. */
+.brand { margin-inline-start: auto; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.brand.short .brand-words { display: none; }
 /* Phones: the open chat takes the whole screen; 16px text so iOS doesn't zoom into the input. */
 @media (max-width: 480px) {
   :host(.is-open) { inset: 0; right: 0; bottom: 0; gap: 0; }
