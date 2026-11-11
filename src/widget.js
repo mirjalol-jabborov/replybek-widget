@@ -13,7 +13,7 @@ import css from "./widget.css?inline";
   const script = document.currentScript || document.querySelector('script[data-key][src*="replybek-widget"]') || document.querySelector("script[data-replybek-key]");
   const KEY = script && (script.dataset.key || script.dataset.replybekKey);
   const API = script && (script.dataset.api || "").replace(/\/$/, "");
-  const LANGUAGE = String(script?.dataset.language || document.documentElement.lang || navigator.language || "en").toLowerCase().split("-")[0];
+  const LANGUAGE = String(script?.dataset.language || document.documentElement.lang || navigator.language || "en").trim().toLowerCase().split(/[-_]/)[0] || "en";
   if (!KEY || !API) return console.warn("[Replybek] Add data-key and data-api to the widget script tag.");
   if (window.__replybekWidget) return; // pasted twice
   window.__replybekWidget = true;
@@ -25,7 +25,6 @@ import css from "./widget.css?inline";
 
   // ───── Words ─────
   // The widget speaks the page's language when it's one we have; English otherwise.
-  const LANG = ["en", "uz", "ru"].includes(LANGUAGE) ? LANGUAGE : "en";
   const STRINGS = {
     en: {
       open: "Open chat", chat: "Chat", chatWith: "Chat with {name}", minimize: "Minimize chat",
@@ -38,6 +37,7 @@ import css from "./widget.css?inline";
       pleaseConfirm: "Please confirm", confirm: "Confirm", cancel: "Cancel",
       confirmed: "Confirmed", cancelled: "Cancelled", failed: "Didn't go through",
       team: "{name} team", typing: "AI agent is typing", teamTyping: "{name} is typing",
+      steps: { search: "Looking through our help docs…", tool: "Checking our system…", confirm: "Preparing the change for you to confirm…", writing: "Writing the answer…" },
       handoff: "A teammate has been asked to join. They'll reply here; you can keep this page open or come back later.",
       replying: "A teammate is replying", waiting: "Waiting for the team", agent: "{name} · AI agent",
       errSend: "Couldn't send your message. Check your connection and try again.",
@@ -58,6 +58,7 @@ import css from "./widget.css?inline";
       pleaseConfirm: "Tasdiqlang", confirm: "Tasdiqlash", cancel: "Bekor qilish",
       confirmed: "Tasdiqlandi", cancelled: "Bekor qilindi", failed: "Amalga oshmadi",
       team: "{name} jamoasi", typing: "AI agent yozmoqda", teamTyping: "{name} yozmoqda",
+      steps: { search: "Maʼlumotlarni qidiryapman…", tool: "Bazadan tekshiryapman…", confirm: "Tasdiqlash uchun tayyorlayapman…", writing: "Javob tayyorlayapman…" },
       handoff: "Xodimga xabar berildi. U shu yerda javob beradi: sahifani ochiq qoldirishingiz yoki keyinroq qaytishingiz mumkin.",
       replying: "Xodim javob bermoqda", waiting: "Jamoa kutilmoqda", agent: "{name} · AI agent",
       errSend: "Xabar yuborilmadi. Internetni tekshirib, qayta urinib koʻring.",
@@ -78,6 +79,7 @@ import css from "./widget.css?inline";
       pleaseConfirm: "Подтвердите", confirm: "Подтвердить", cancel: "Отмена",
       confirmed: "Подтверждено", cancelled: "Отменено", failed: "Не получилось",
       team: "Команда {name}", typing: "ИИ-агент печатает", teamTyping: "{name} печатает",
+      steps: { search: "Ищу в базе знаний…", tool: "Проверяю в базе…", confirm: "Готовлю изменение на подтверждение…", writing: "Готовлю ответ…" },
       handoff: "Мы позвали сотрудника. Он ответит здесь: можно оставить страницу открытой или вернуться позже.",
       replying: "Отвечает сотрудник", waiting: "Ждём команду", agent: "{name} · ИИ-агент",
       errSend: "Не удалось отправить сообщение. Проверьте интернет и попробуйте ещё раз.",
@@ -87,14 +89,302 @@ import css from "./widget.css?inline";
       fileTooBig: "Файл должен быть не больше 10 МБ.", fileType: "Отправьте фото, PDF или документ (TXT, CSV, DOCX, XLSX).",
       kb: "{n} КБ", mb: "{n} МБ",
     },
+    es: {
+      open: "Abrir chat", chat: "Chat", chatWith: "Chatear con {name}", minimize: "Minimizar chat",
+      ask: "Haga una pregunta", message: "Mensaje", send: "Enviar mensaje",
+      person: "Hablar con una persona", wantPerson: "Me gustaría hablar con una persona.", newChat: "Iniciar un nuevo chat",
+      powered: "Con la tecnología de Replybek",
+      note: "Las respuestas las escribe la IA a partir de la información de este negocio. Si lo necesita, una persona puede ayudarle.",
+      sources: { one: "{count} fuente utilizada", many: "{count} de fuentes utilizadas", other: "{count} fuentes utilizadas" },
+      signInTo: "Iniciar sesión en {name}", signInNote: "Iniciará sesión en la página del negocio. Su contraseña no se comparte con este chat.", signIn: "Iniciar sesión",
+      pleaseConfirm: "Confirme, por favor", confirm: "Confirmar", cancel: "Cancelar",
+      confirmed: "Confirmado", cancelled: "Cancelado", failed: "No se pudo completar",
+      team: "Equipo de {name}", typing: "El agente de IA está escribiendo", teamTyping: "{name} está escribiendo",
+      steps: { search: "Buscando en nuestra documentación de ayuda…", tool: "Consultando nuestro sistema…", confirm: "Preparando el cambio para que lo confirme…", writing: "Redactando la respuesta…" },
+      handoff: "Hemos pedido a un miembro del equipo que se una. Le responderá aquí. Puede mantener esta página abierta o volver más tarde.",
+      replying: "Un miembro del equipo está respondiendo", waiting: "Esperando al equipo", agent: "{name} · agente de IA",
+      errSend: "No se pudo enviar su mensaje. Compruebe su conexión e inténtelo de nuevo.",
+      errExpired: "Este chat ha caducado. Envíe su mensaje de nuevo.",
+      wrong: "Algo salió mal.",
+      attach: "Adjuntar un archivo", removeFile: "Quitar archivo", photo: "Foto", openPhoto: "Abrir foto", download: "Descargar {name}",
+      fileTooBig: "Los archivos pueden tener hasta 10 MB.", fileType: "Envíe una foto, un PDF o un documento (TXT, CSV, DOCX, XLSX).",
+      kb: "{n} KB", mb: "{n} MB",
+    },
+    pt: {
+      open: "Abrir chat", chat: "Chat", chatWith: "Conversar com {name}", minimize: "Minimizar chat",
+      ask: "Faça uma pergunta", message: "Mensagem", send: "Enviar mensagem",
+      person: "Falar com uma pessoa", wantPerson: "Gostaria de falar com uma pessoa.", newChat: "Iniciar uma nova conversa",
+      powered: "Com tecnologia Replybek",
+      note: "As respostas são escritas por IA com base nas informações desta empresa. Se precisar, uma pessoa pode ajudar.",
+      sources: { one: "{count} fonte utilizada", many: "{count} de fontes utilizadas", other: "{count} fontes utilizadas" },
+      signInTo: "Iniciar sessão em {name}", signInNote: "O início de sessão é feito na página da empresa. Os seus dados de acesso não são enviados para este chat.", signIn: "Iniciar sessão",
+      pleaseConfirm: "Confirme, por favor", confirm: "Confirmar", cancel: "Cancelar",
+      confirmed: "Confirmado", cancelled: "Cancelado", failed: "Não foi possível concluir",
+      team: "Suporte {name}", typing: "O agente de IA escreve uma resposta", teamTyping: "{name} escreve uma resposta",
+      steps: { search: "Pesquisa na nossa documentação de ajuda…", tool: "Verificação no nosso sistema…", confirm: "Preparação da alteração para a sua confirmação…", writing: "Redação da resposta…" },
+      handoff: "Pedimos a um colaborador que se junte à conversa. A resposta chegará aqui. Pode manter esta página aberta ou voltar mais tarde.",
+      replying: "Resposta de um colaborador a caminho", waiting: "À espera do suporte", agent: "{name} · agente de IA",
+      errSend: "Não foi possível enviar a mensagem. Verifique a conexão e tente novamente.",
+      errExpired: "Esta conversa expirou. Envie a mensagem novamente.",
+      wrong: "Ocorreu um erro.",
+      attach: "Adicionar anexo", removeFile: "Remover anexo", photo: "Foto", openPhoto: "Abrir foto", download: "Fazer download de {name}",
+      fileTooBig: "Os anexos podem ter até 10 MB.", fileType: "Envie uma foto, um PDF ou um documento (TXT, CSV, DOCX, XLSX).",
+      kb: "{n} KB", mb: "{n} MB",
+    },
+    fr: {
+      open: "Ouvrir le chat", chat: "Chat", chatWith: "Discuter avec {name}", minimize: "Réduire le chat",
+      ask: "Posez une question", message: "Message", send: "Envoyer le message",
+      person: "Parler à une personne", wantPerson: "Je souhaite parler à une personne.", newChat: "Démarrer une nouvelle conversation",
+      powered: "Propulsé par Replybek",
+      note: "Les réponses sont rédigées par une IA à partir des informations de cette entreprise. Une personne peut vous aider si besoin.",
+      sources: { one: "{count} source utilisée", many: "{count} de sources utilisées", other: "{count} sources utilisées" },
+      signInTo: "Se connecter à {name}", signInNote: "Vous vous connecterez sur la page de l’entreprise. Votre mot de passe n’est pas partagé avec ce chat.", signIn: "Se connecter",
+      pleaseConfirm: "Veuillez confirmer", confirm: "Confirmer", cancel: "Annuler",
+      confirmed: "Confirmé", cancelled: "Annulé", failed: "L’opération n’a pas abouti",
+      team: "Équipe {name}", typing: "L’agent IA est en train d’écrire", teamTyping: "{name} est en train d’écrire",
+      steps: { search: "Recherche dans notre documentation d’aide…", tool: "Vérification dans notre système…", confirm: "Préparation de la modification à confirmer…", writing: "Rédaction de la réponse…" },
+      handoff: "Un membre de l’équipe a été invité à rejoindre la conversation. Il vous répondra ici. Vous pouvez garder cette page ouverte ou revenir plus tard.",
+      replying: "Un membre de l’équipe répond", waiting: "En attente de l’équipe", agent: "{name} · agent IA",
+      errSend: "Impossible d’envoyer votre message. Vérifiez votre connexion et réessayez.",
+      errExpired: "Cette conversation a expiré. Veuillez renvoyer votre message.",
+      wrong: "Une erreur s’est produite.",
+      attach: "Joindre un fichier", removeFile: "Retirer le fichier", photo: "Photo", openPhoto: "Ouvrir la photo", download: "Télécharger {name}",
+      fileTooBig: "Les fichiers peuvent faire jusqu’à 10 Mo.", fileType: "Envoyez une photo, un PDF ou un document (TXT, CSV, DOCX, XLSX).",
+      kb: "{n} Ko", mb: "{n} Mo",
+    },
+    it: {
+      open: "Apri la chat", chat: "Chat", chatWith: "Chatta con {name}", minimize: "Riduci la chat",
+      ask: "Scriva una domanda", message: "Messaggio", send: "Invia messaggio",
+      person: "Parlare con una persona", wantPerson: "Vorrei parlare con una persona.", newChat: "Avvia una nuova chat",
+      powered: "Con tecnologia Replybek",
+      note: "Le risposte sono scritte dall’IA in base alle informazioni di questa attività. Se ne ha bisogno, una persona può aiutarla.",
+      sources: { one: "{count} fonte utilizzata", many: "{count} di fonti utilizzate", other: "{count} fonti utilizzate" },
+      signInTo: "Accedi a {name}", signInNote: "L’accesso avviene sulla pagina dell’attività. La sua password non viene condivisa con questa chat.", signIn: "Accedi",
+      pleaseConfirm: "Confermi, per favore", confirm: "Conferma", cancel: "Annulla",
+      confirmed: "Confermato", cancelled: "Annullato", failed: "Operazione non riuscita",
+      team: "Team {name}", typing: "L’agente IA sta scrivendo", teamTyping: "{name} sta scrivendo",
+      steps: { search: "Ricerca nella nostra documentazione di supporto…", tool: "Verifica nel nostro sistema…", confirm: "Preparazione della modifica da confermare…", writing: "Scrittura della risposta…" },
+      handoff: "Abbiamo chiesto a un membro del team di unirsi. Risponderà qui. Può tenere aperta questa pagina o tornare più tardi.",
+      replying: "Un membro del team sta rispondendo", waiting: "In attesa del team", agent: "{name} · agente IA",
+      errSend: "Impossibile inviare il messaggio. Controlli la connessione e riprovi.",
+      errExpired: "Questa chat è scaduta. Invii di nuovo il messaggio.",
+      wrong: "Si è verificato un errore.",
+      attach: "Allega un file", removeFile: "Rimuovi file", photo: "Foto", openPhoto: "Apri foto", download: "Scarica {name}",
+      fileTooBig: "I file possono pesare fino a 10 MB.", fileType: "Invii una foto, un PDF o un documento (TXT, CSV, DOCX, XLSX).",
+      kb: "{n} KB", mb: "{n} MB",
+    },
+    de: {
+      open: "Chat öffnen", chat: "Chat", chatWith: "Chat mit {name}", minimize: "Chat minimieren",
+      ask: "Stellen Sie eine Frage", message: "Nachricht", send: "Nachricht senden",
+      person: "Mit einer Person sprechen", wantPerson: "Ich möchte gern mit einer Person sprechen.", newChat: "Neuen Chat starten",
+      powered: "Bereitgestellt von Replybek",
+      note: "Die Antworten werden von KI auf Grundlage der Informationen dieses Unternehmens verfasst. Bei Bedarf hilft Ihnen gern eine Person weiter.",
+      sources: { one: "{count} Quelle verwendet", other: "{count} Quellen verwendet" },
+      signInTo: "Bei {name} anmelden", signInNote: "Sie melden sich auf der Seite des Unternehmens an. Ihr Passwort wird nicht mit diesem Chat geteilt.", signIn: "Anmelden",
+      pleaseConfirm: "Bitte bestätigen", confirm: "Bestätigen", cancel: "Abbrechen",
+      confirmed: "Bestätigt", cancelled: "Abgebrochen", failed: "Fehlgeschlagen",
+      team: "Team {name}", typing: "Der KI-Agent schreibt", teamTyping: "{name} schreibt",
+      steps: { search: "Unsere Hilfedokumente werden durchsucht…", tool: "Wird in unserem System nachgesehen…", confirm: "Die Änderung wird zur Bestätigung vorbereitet…", writing: "Die Antwort wird verfasst…" },
+      handoff: "Ein Teammitglied wurde hinzugebeten. Die Antwort erscheint hier. Sie können diese Seite geöffnet lassen oder später zurückkommen.",
+      replying: "Ein Teammitglied antwortet", waiting: "Warten auf das Team", agent: "{name} · KI-Agent",
+      errSend: "Ihre Nachricht konnte nicht gesendet werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      errExpired: "Dieser Chat ist abgelaufen. Bitte senden Sie Ihre Nachricht erneut.",
+      wrong: "Etwas ist schiefgelaufen.",
+      attach: "Datei anhängen", removeFile: "Datei entfernen", photo: "Foto", openPhoto: "Foto öffnen", download: "{name} herunterladen",
+      fileTooBig: "Dateien dürfen bis zu 10 MB groß sein.", fileType: "Senden Sie ein Foto, eine PDF-Datei oder ein Dokument (TXT, CSV, DOCX, XLSX).",
+      kb: "{n} KB", mb: "{n} MB",
+    },
+    ja: {
+      open: "チャットを開く", chat: "チャット", chatWith: "{name}とチャット", minimize: "チャットを最小化",
+      ask: "質問を入力してください", message: "メッセージ", send: "メッセージを送信",
+      person: "担当者と話す", wantPerson: "担当者と話したいです。", newChat: "新しいチャットを始める",
+      powered: "Replybek提供",
+      note: "回答は、この事業者の情報をもとにAIが作成しています。必要な場合は担当者がお手伝いします。",
+      sources: { other: "{count}件の情報源を使用" },
+      signInTo: "{name}にサインイン", signInNote: "サインインは事業者のページで行います。パスワードがこのチャットに共有されることはありません。", signIn: "サインイン",
+      pleaseConfirm: "ご確認ください", confirm: "確定する", cancel: "キャンセル",
+      confirmed: "確定しました", cancelled: "キャンセルしました", failed: "完了できませんでした",
+      team: "{name}チーム", typing: "AIエージェントが入力中です", teamTyping: "{name}が入力中です",
+      steps: { search: "ヘルプ記事を確認しています…", tool: "システムで確認しています…", confirm: "確認用の変更内容を準備しています…", writing: "回答を作成しています…" },
+      handoff: "担当者に参加を依頼しました。返信はこちらに届きます。このページを開いたままにするか、後でもう一度アクセスしてください。",
+      replying: "担当者が返信中です", waiting: "担当者を待っています", agent: "{name} · AIエージェント",
+      errSend: "メッセージを送信できませんでした。接続を確認して、もう一度お試しください。",
+      errExpired: "このチャットは期限切れになりました。もう一度メッセージを送信してください。",
+      wrong: "問題が発生しました。",
+      attach: "ファイルを添付", removeFile: "ファイルを削除", photo: "写真", openPhoto: "写真を開く", download: "{name}をダウンロード",
+      fileTooBig: "ファイルは10 MBまで送信できます。", fileType: "写真、PDF、またはドキュメント（TXT, CSV, DOCX, XLSX）を送信してください。",
+      kb: "{n} KB", mb: "{n} MB",
+    },
+    ko: {
+      open: "채팅 열기", chat: "채팅", chatWith: "{name} 채팅", minimize: "채팅 최소화",
+      ask: "질문을 입력하세요", message: "메시지", send: "메시지 보내기",
+      person: "상담원과 대화하기", wantPerson: "상담원과 이야기하고 싶어요.", newChat: "새 채팅 시작하기",
+      powered: "Replybek 제공",
+      note: "답변은 이 업체의 정보를 바탕으로 AI가 작성해요. 필요하면 상담원이 도와드려요.",
+      sources: { other: "출처 {count}개 사용" },
+      signInTo: "{name}에 로그인", signInNote: "로그인은 업체 페이지에서 진행돼요. 비밀번호는 이 채팅에 공유되지 않아요.", signIn: "로그인",
+      pleaseConfirm: "확인해 주세요", confirm: "확인", cancel: "취소",
+      confirmed: "확인됨", cancelled: "취소됨", failed: "처리되지 않았어요",
+      team: "{name} 팀", typing: "AI 에이전트가 입력 중이에요", teamTyping: "{name} 님이 입력 중이에요",
+      steps: { search: "도움말 문서를 살펴보고 있어요…", tool: "시스템에서 확인하고 있어요…", confirm: "확인하실 변경 사항을 준비하고 있어요…", writing: "답변을 작성하고 있어요…" },
+      handoff: "상담원에게 참여를 요청했어요. 답변은 여기에 표시돼요. 이 페이지를 열어 두거나 나중에 다시 오셔도 돼요.",
+      replying: "상담원이 답변하고 있어요", waiting: "상담원을 기다리고 있어요", agent: "{name} · AI 에이전트",
+      errSend: "메시지를 보내지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.",
+      errExpired: "이 채팅이 만료되었어요. 메시지를 다시 보내 주세요.",
+      wrong: "문제가 발생했어요.",
+      attach: "파일 첨부", removeFile: "파일 삭제", photo: "사진", openPhoto: "사진 열기", download: "{name} 다운로드",
+      fileTooBig: "파일은 최대 10 MB까지 보낼 수 있어요.", fileType: "사진, PDF 또는 문서(TXT, CSV, DOCX, XLSX)를 보내 주세요.",
+      kb: "{n} KB", mb: "{n} MB",
+    },
+    zh: {
+      open: "打开聊天", chat: "聊天", chatWith: "与{name}聊天", minimize: "最小化聊天",
+      ask: "请输入问题", message: "消息", send: "发送消息",
+      person: "联系人工客服", wantPerson: "我想和人工客服沟通。", newChat: "开始新的对话",
+      powered: "由 Replybek 提供支持",
+      note: "回答由 AI 根据该商家的信息生成。如有需要，可以转人工客服。",
+      sources: { other: "已参考 {count} 个来源" },
+      signInTo: "登录{name}", signInNote: "您将在该商家的页面登录。您的密码不会共享给此聊天。", signIn: "登录",
+      pleaseConfirm: "请确认", confirm: "确认", cancel: "取消",
+      confirmed: "已确认", cancelled: "已取消", failed: "未能完成",
+      team: "{name}团队", typing: "AI 智能体正在输入", teamTyping: "{name}正在输入",
+      steps: { search: "正在查阅帮助文档…", tool: "正在查询系统…", confirm: "正在准备待您确认的更改…", writing: "正在撰写回答…" },
+      handoff: "已邀请一位团队成员加入。对方会在这里回复，您可以保持此页面打开，也可以稍后再来。",
+      replying: "团队成员正在回复", waiting: "正在等待团队回复", agent: "{name} · AI 智能体",
+      errSend: "消息发送失败。请检查网络连接后重试。",
+      errExpired: "此对话已过期。请重新发送消息。",
+      wrong: "出了点问题。",
+      attach: "添加附件", removeFile: "移除文件", photo: "照片", openPhoto: "打开照片", download: "下载{name}",
+      fileTooBig: "文件大小不能超过 10 MB。", fileType: "请发送照片、PDF 或文档（TXT, CSV, DOCX, XLSX）。",
+      kb: "{n} KB", mb: "{n} MB",
+    },
+    ar: {
+      open: "فتح المحادثة", chat: "محادثة", chatWith: "محادثة مع {name}", minimize: "تصغير المحادثة",
+      ask: "اطرح سؤالًا", message: "رسالة", send: "إرسال الرسالة",
+      person: "التحدث مع أحد الموظفين", wantPerson: "أرغب في التحدث مع أحد الموظفين.", newChat: "بدء محادثة جديدة",
+      powered: "بدعم من Replybek",
+      note: "تُكتب الإجابات بالذكاء الاصطناعي استنادًا إلى معلومات هذه الشركة. يمكن لأحد الموظفين مساعدتك عند الحاجة.",
+      sources: { zero: "{count} مصدر مستخدم", one: "{count} مصدر مستخدم", two: "{count} مصدر مستخدم", few: "{count} مصادر مستخدمة", many: "{count} مصدرًا مستخدمًا", other: "{count} مصدر مستخدم" },
+      signInTo: "تسجيل الدخول إلى {name}", signInNote: "ستسجّل الدخول من صفحة الشركة. لا تتم مشاركة كلمة المرور مع هذه المحادثة.", signIn: "تسجيل الدخول",
+      pleaseConfirm: "يُرجى التأكيد", confirm: "تأكيد", cancel: "إلغاء",
+      confirmed: "تم التأكيد", cancelled: "تم الإلغاء", failed: "لم تتم العملية",
+      team: "فريق {name}", typing: "وكيل الذكاء الاصطناعي يكتب", teamTyping: "{name} يكتب",
+      steps: { search: "جارٍ البحث في مستندات المساعدة…", tool: "جارٍ التحقق في نظامنا…", confirm: "جارٍ تجهيز التغيير لتأكيده…", writing: "جارٍ كتابة الإجابة…" },
+      handoff: "طلبنا من أحد أعضاء الفريق الانضمام. سيرد عليك هنا، ويمكنك إبقاء هذه الصفحة مفتوحة أو العودة لاحقًا.",
+      replying: "أحد أعضاء الفريق يكتب الرد", waiting: "في انتظار الفريق", agent: "{name} · وكيل ذكاء اصطناعي",
+      errSend: "تعذّر إرسال رسالتك. تحقق من اتصالك وحاول مرة أخرى.",
+      errExpired: "انتهت صلاحية هذه المحادثة. يُرجى إرسال رسالتك مرة أخرى.",
+      wrong: "حدث خطأ ما.",
+      attach: "إرفاق ملف", removeFile: "إزالة الملف", photo: "صورة", openPhoto: "فتح الصورة", download: "تنزيل {name}",
+      fileTooBig: "الحد الأقصى لحجم الملف 10 MB.", fileType: "أرسل صورة أو ملف PDF أو مستندًا (TXT, CSV, DOCX, XLSX).",
+      kb: "{n} KB", mb: "{n} MB",
+    },
+    tr: {
+      open: "Sohbeti aç", chat: "Sohbet", chatWith: "{name} ile sohbet et", minimize: "Sohbeti küçült",
+      ask: "Bir soru sorun", message: "Mesaj", send: "Mesajı gönder",
+      person: "Bir kişiyle görüş", wantPerson: "Bir kişiyle görüşmek istiyorum.", newChat: "Yeni sohbet başlat",
+      powered: "Replybek ile çalışır",
+      note: "Yanıtlar, bu işletmenin bilgilerine dayanarak yapay zekâ tarafından yazılır. İhtiyaç duyarsanız bir kişi yardımcı olabilir.",
+      sources: { one: "{count} kaynak kullanıldı", other: "{count} kaynak kullanıldı" },
+      signInTo: "Giriş yapın: {name}", signInNote: "Girişi işletmenin sayfasında yapacaksınız. Şifreniz bu sohbetle paylaşılmaz.", signIn: "Giriş yap",
+      pleaseConfirm: "Lütfen onaylayın", confirm: "Onayla", cancel: "İptal",
+      confirmed: "Onaylandı", cancelled: "İptal edildi", failed: "Gerçekleştirilemedi",
+      team: "{name} ekibi", typing: "Yapay zekâ ajanı yazıyor", teamTyping: "{name} yazıyor",
+      steps: { search: "Yardım belgelerimize bakılıyor…", tool: "Sistemimizde kontrol ediliyor…", confirm: "Onaylamanız için değişiklik hazırlanıyor…", writing: "Yanıt yazılıyor…" },
+      handoff: "Bir ekip arkadaşımızdan sohbete katılması istendi. Yanıtı buraya gelecek. Bu sayfayı açık tutabilir veya daha sonra geri dönebilirsiniz.",
+      replying: "Bir ekip üyesi yanıtlıyor", waiting: "Ekip bekleniyor", agent: "{name} · yapay zekâ ajanı",
+      errSend: "Mesajınız gönderilemedi. Bağlantınızı kontrol edip tekrar deneyin.",
+      errExpired: "Bu sohbetin süresi doldu. Lütfen mesajınızı tekrar gönderin.",
+      wrong: "Bir sorun oluştu.",
+      attach: "Dosya ekle", removeFile: "Dosyayı kaldır", photo: "Fotoğraf", openPhoto: "Fotoğrafı aç", download: "İndir: {name}",
+      fileTooBig: "Dosyalar en fazla 10 MB olabilir.", fileType: "Fotoğraf, PDF veya belge (TXT, CSV, DOCX, XLSX) gönderin.",
+      kb: "{n} KB", mb: "{n} MB",
+    },
+    hi: {
+      open: "चैट खोलें", chat: "चैट", chatWith: "{name} से चैट करें", minimize: "चैट छोटा करें",
+      ask: "अपना सवाल पूछें", message: "संदेश", send: "संदेश भेजें",
+      person: "किसी व्यक्ति से बात करें", wantPerson: "मुझे किसी व्यक्ति से बात करनी है।", newChat: "नई चैट शुरू करें",
+      powered: "Replybek द्वारा संचालित",
+      note: "जवाब इस व्यवसाय की जानकारी के आधार पर AI लिखता है। ज़रूरत हो तो कोई व्यक्ति आपकी मदद कर सकता है।",
+      sources: { one: "{count} स्रोत इस्तेमाल हुआ", other: "{count} स्रोत इस्तेमाल हुए" },
+      signInTo: "{name} में साइन इन करें", signInNote: "साइन इन व्यवसाय के पेज पर होगा। आपका पासवर्ड इस चैट के साथ साझा नहीं किया जाता।", signIn: "साइन इन करें",
+      pleaseConfirm: "कृपया पुष्टि करें", confirm: "पुष्टि करें", cancel: "रद्द करें",
+      confirmed: "पुष्टि हो गई", cancelled: "रद्द किया गया", failed: "पूरा नहीं हो सका",
+      team: "{name} टीम", typing: "AI एजेंट लिख रहा है", teamTyping: "{name} लिख रहे हैं",
+      steps: { search: "हमारे सहायता दस्तावेज़ देखे जा रहे हैं…", tool: "हमारे सिस्टम में जाँच की जा रही है…", confirm: "आपकी पुष्टि के लिए बदलाव तैयार किया जा रहा है…", writing: "जवाब लिखा जा रहा है…" },
+      handoff: "टीम के एक सदस्य को जुड़ने के लिए कहा गया है। जवाब यहीं आएगा। आप यह पेज खुला रख सकते हैं या बाद में लौट सकते हैं।",
+      replying: "टीम का एक सदस्य जवाब दे रहा है", waiting: "टीम का इंतज़ार है", agent: "{name} · AI एजेंट",
+      errSend: "आपका संदेश नहीं भेजा जा सका। अपना कनेक्शन जाँचें और फिर से कोशिश करें।",
+      errExpired: "यह चैट समाप्त हो गई है। कृपया अपना संदेश फिर से भेजें।",
+      wrong: "कुछ गड़बड़ हो गई।",
+      attach: "फ़ाइल अटैच करें", removeFile: "फ़ाइल हटाएँ", photo: "फ़ोटो", openPhoto: "फ़ोटो खोलें", download: "{name} डाउनलोड करें",
+      fileTooBig: "फ़ाइलें अधिकतम 10 MB तक की हो सकती हैं।", fileType: "फ़ोटो, PDF या दस्तावेज़ (TXT, CSV, DOCX, XLSX) भेजें।",
+      kb: "{n} KB", mb: "{n} MB",
+    },
+    id: {
+      open: "Buka chat", chat: "Chat", chatWith: "Chat dengan {name}", minimize: "Perkecil chat",
+      ask: "Ajukan pertanyaan", message: "Pesan", send: "Kirim pesan",
+      person: "Bicara dengan petugas", wantPerson: "Saya ingin bicara dengan petugas.", newChat: "Mulai chat baru",
+      powered: "Didukung oleh Replybek",
+      note: "Jawaban ditulis oleh AI berdasarkan informasi bisnis ini. Petugas dapat membantu jika Anda membutuhkannya.",
+      sources: { other: "{count} sumber digunakan" },
+      signInTo: "Masuk ke {name}", signInNote: "Anda akan masuk di halaman bisnis tersebut. Kata sandi Anda tidak dibagikan ke chat ini.", signIn: "Masuk",
+      pleaseConfirm: "Mohon konfirmasi", confirm: "Konfirmasi", cancel: "Batal",
+      confirmed: "Dikonfirmasi", cancelled: "Dibatalkan", failed: "Tidak berhasil",
+      team: "Tim {name}", typing: "Agen AI sedang mengetik", teamTyping: "{name} sedang mengetik",
+      steps: { search: "Mencari di dokumen bantuan kami…", tool: "Mengecek di sistem kami…", confirm: "Menyiapkan perubahan untuk Anda konfirmasi…", writing: "Menulis jawaban…" },
+      handoff: "Seorang anggota tim sudah diminta bergabung. Mereka akan membalas di sini. Anda dapat membiarkan halaman ini terbuka atau kembali nanti.",
+      replying: "Anggota tim sedang membalas", waiting: "Menunggu tim", agent: "{name} · agen AI",
+      errSend: "Pesan Anda tidak terkirim. Periksa koneksi Anda, lalu coba lagi.",
+      errExpired: "Chat ini sudah kedaluwarsa. Silakan kirim pesan Anda lagi.",
+      wrong: "Terjadi kesalahan.",
+      attach: "Lampirkan file", removeFile: "Hapus file", photo: "Foto", openPhoto: "Buka foto", download: "Unduh {name}",
+      fileTooBig: "Ukuran file maksimal 10 MB.", fileType: "Kirim foto, PDF, atau dokumen (TXT, CSV, DOCX, XLSX).",
+      kb: "{n} KB", mb: "{n} MB",
+    },
+    pl: {
+      open: "Otwórz czat", chat: "Czat", chatWith: "Czat z firmą {name}", minimize: "Zminimalizuj czat",
+      ask: "Wpisz pytanie", message: "Wiadomość", send: "Wyślij wiadomość",
+      person: "Porozmawiaj z konsultantem", wantPerson: "Proszę o rozmowę z konsultantem.", newChat: "Rozpocznij nowy czat",
+      powered: "Obsługiwane przez Replybek",
+      note: "Odpowiedzi pisze AI na podstawie informacji tej firmy. W razie potrzeby pomoże konsultant.",
+      sources: { one: "Wykorzystano {count} źródło", few: "Wykorzystano {count} źródła", many: "Wykorzystano {count} źródeł", other: "Wykorzystano {count} źródła" },
+      signInTo: "Zaloguj się w serwisie {name}", signInNote: "Logowanie odbywa się na stronie firmy. Hasło nie jest udostępniane temu czatowi.", signIn: "Zaloguj się",
+      pleaseConfirm: "Prosimy o potwierdzenie", confirm: "Potwierdź", cancel: "Anuluj",
+      confirmed: "Potwierdzono", cancelled: "Anulowano", failed: "Nie udało się",
+      team: "Zespół {name}", typing: "Agent AI pisze", teamTyping: "{name} pisze",
+      steps: { search: "Przeszukiwanie dokumentacji pomocy…", tool: "Sprawdzanie w naszym systemie…", confirm: "Przygotowywanie zmiany do potwierdzenia…", writing: "Pisanie odpowiedzi…" },
+      handoff: "Poprosiliśmy członka zespołu o dołączenie. Odpowiedź pojawi się tutaj. Można zostawić tę stronę otwartą lub wrócić później.",
+      replying: "Członek zespołu odpisuje", waiting: "Oczekiwanie na zespół", agent: "{name} · agent AI",
+      errSend: "Nie udało się wysłać wiadomości. Sprawdź połączenie i spróbuj ponownie.",
+      errExpired: "Ten czat wygasł. Wyślij wiadomość ponownie.",
+      wrong: "Coś poszło nie tak.",
+      attach: "Załącz plik", removeFile: "Usuń plik", photo: "Zdjęcie", openPhoto: "Otwórz zdjęcie", download: "Pobierz {name}",
+      fileTooBig: "Pliki mogą mieć maksymalnie 10 MB.", fileType: "Wyślij zdjęcie, plik PDF lub dokument (TXT, CSV, DOCX, XLSX).",
+      kb: "{n} KB", mb: "{n} MB",
+    },
   };
+  // Any language with built-in texts below; others fall back to English (the greeting and questions
+  // still come in the page's language when the server has them).
+  const LANG = Object.hasOwn(STRINGS, LANGUAGE) ? LANGUAGE : "en";
+  // Right-to-left languages (Arabic) mirror the chat. Browsers without Intl text info know the common ones.
+  const DIR = (() => {
+    try {
+      const locale = new Intl.Locale(LANG);
+      const info = typeof locale.getTextInfo === "function" ? locale.getTextInfo() : locale.textInfo;
+      if (info && info.direction) return info.direction;
+    } catch {
+      // fall through
+    }
+    return ["ar", "he", "fa", "ur"].includes(LANG) ? "rtl" : "ltr";
+  })();
   const plural = new Intl.PluralRules(LANG);
   function t(key, params = {}) {
     let s = STRINGS[LANG][key] ?? STRINGS.en[key];
     if (s && typeof s === "object") s = s[plural.select(params.count ?? 0)] ?? s.other;
     return String(s).replace(/\{(\w+)\}/g, (m, k) => (params[k] == null ? m : String(params[k])));
   }
-  const LOCALE = { en: "en-US", uz: "uz-UZ", ru: "ru-RU" }[LANG];
+  // Times and sizes in the widget's language (the region is a guess only where it matters for en/uz/ru).
+  const LOCALE = { en: "en-US", uz: "uz-UZ", ru: "ru-RU" }[LANG] || LANG;
 
   const STORE = `replybek:${KEY}`;
   const load = () => {
@@ -179,6 +469,11 @@ import css from "./widget.css?inline";
   let typedAt = 0;           // when we last told the team the visitor is typing
   let pollTimer = null;
   let thinking = false;      // the AI is working (answering with tools, or finishing a confirmed change)
+  let progress = null;       // what it's doing right now ("Checking our system…"), from the live stream
+  let progressAt = 0;        // when that step appeared: each stays at least STEP_MS, so quick ones can be read
+  let progressNext = null;
+  let progressTimer = null;
+  const STEP_MS = 800;
   let activeTimer = null;    // the fast poll that runs while thinking
   let live = null;           // the open live-updates request (an AbortController)
   let liveUp = false;        // events are flowing, so polling only backs them up
@@ -213,7 +508,7 @@ import css from "./widget.css?inline";
 
   const badge = h("span", { class: "badge", hidden: true });
   launcher.append(badge);
-  const panel = h("section", { class: "panel", role: "dialog", "aria-label": t("chat"), hidden: true });
+  const panel = h("section", { class: "panel", role: "dialog", "aria-label": t("chat"), dir: DIR, lang: LANG, hidden: true });
   const list = h("div", { class: "body", "aria-live": "polite" });
   const input = h("input", { type: "text", placeholder: t("ask"), maxlength: "2000", "aria-label": t("message"), autocomplete: "off" });
   const sendBtn = h("button", { class: "send", type: "submit", "aria-label": t("send"), disabled: true }, icon("send", 16));
@@ -419,7 +714,14 @@ import css from "./widget.css?inline";
     }
     const waiting = status === "needs_human" || status === "human";
     // The AI's dots only while the AI is answering; a teammate's own, with their name.
-    if (thinking || (sending && !waiting)) list.append(h("div", { class: "typing", role: "status", "aria-label": t("typing") }, h("span"), h("span"), h("span")));
+    if (!thinking && !sending) {
+      progress = progressNext = null;
+      clearTimeout(progressTimer);
+    }
+    if (thinking || (sending && !waiting)) {
+      const dots = h("div", { class: "typing", "aria-hidden": "true" }, h("span"), h("span"), h("span"));
+      list.append(h("div", { class: "working", role: "status", "aria-label": progress || t("typing") }, dots, progress ? h("span", { class: "step", text: progress }) : null));
+    }
     else if (teamTyping && teamTyping.until > Date.now()) {
       const label = t("teamTyping", { name: teamTyping.name || t("team", { name: config.display_name }) });
       list.append(h("div", { class: "msg bot team" }, h("div", { class: "who", text: label }), h("div", { class: "typing", role: "status", "aria-label": label }, h("span"), h("span"), h("span"))));
@@ -509,10 +811,19 @@ import css from "./widget.css?inline";
     schedulePoll();
   }
 
+  // The visitor's time zone ("Asia/Tashkent"), so the AI agent knows their "today" and "tomorrow".
+  function timeZone() {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch {
+      return "";
+    }
+  }
+
   async function ensureConversation() {
     if (session.conversation_id) return;
     // After "Start a new chat", the new conversation is linked to the one left behind.
-    const base = { page: location.pathname.slice(0, 400), ...(session.previous ? { previous: session.previous } : {}) };
+    const base = { page: location.pathname.slice(0, 400), language: LANGUAGE, ...(timeZone() ? { timezone: timeZone() } : {}), ...(session.previous ? { previous: session.previous } : {}) };
     // If the API refuses what the page said about the visitor, the chat still starts without it.
     const r = await call("POST", "/conversations", { ...base, ...(who || {}) }).catch((e) => (e.status === 400 && who ? call("POST", "/conversations", base) : Promise.reject(e)));
     session = { conversation_id: r.conversation_id, visitor_token: r.visitor_token };
@@ -546,6 +857,7 @@ import css from "./widget.css?inline";
     const file = pending;
     if ((!q && !file) || sending) return;
     sending = true;
+    progress = null;
     input.value = "";
     if (file) clearPending(true);
     // Show the visitor's message right away; the server's copy replaces it.
@@ -555,10 +867,15 @@ import css from "./widget.css?inline";
     render();
     try {
       await ensureConversation();
-      let body = { text: q };
+      // A new chat's live stream is still connecting: give it a moment, so this answer's progress shows.
+      syncLive();
+      await liveReady(800);
+      // The page's language: replies to a message with no clear language of its own (an emoji, a number) use it.
+      let body = { text: q, language: LANGUAGE };
       if (file) {
         body = new FormData();
         body.append("text", q);
+        body.append("language", LANGUAGE);
         body.append("file", file.file, file.file.name);
       }
       const r = await call("POST", `/conversations/${session.conversation_id}/messages`, body, session.visitor_token);
@@ -793,6 +1110,31 @@ import css from "./widget.css?inline";
     if (want && !live) listenLive();
     if (!want && live) stopLive();
   }
+  /** Shows what the AI is doing; a step that comes sooner than STEP_MS after the last one waits its turn. */
+  function showStep(text) {
+    const wait = progressAt + STEP_MS - Date.now();
+    if (progress && wait > 0) {
+      progressNext = text;
+      clearTimeout(progressTimer);
+      progressTimer = setTimeout(() => {
+        if (progressNext && (sending || thinking)) showStep(progressNext);
+        progressNext = null;
+      }, wait);
+      return;
+    }
+    progress = text;
+    progressAt = Date.now();
+    if (open) render();
+  }
+
+  /** Resolves once the live stream is up, or after `ms` either way. */
+  function liveReady(ms) {
+    const until = Date.now() + ms;
+    return new Promise((done) => {
+      const check = () => (liveUp || Date.now() > until ? done() : setTimeout(check, 50));
+      check();
+    });
+  }
   function stopLive() {
     if (live) live.abort();
     live = null;
@@ -818,6 +1160,18 @@ import css from "./widget.css?inline";
           while ((i = buf.indexOf("\n\n")) >= 0) {
             const block = buf.slice(0, i);
             buf = buf.slice(i + 2);
+            // What the AI is doing: shown beside its dots until the answer arrives.
+            if (/^event: progress$/m.test(block)) {
+              try {
+                const d = JSON.parse((/^data: (.*)$/m.exec(block) || [])[1] || "{}");
+                const steps = STRINGS[LANG].steps || STRINGS.en.steps;
+                const text = (d.step === "tool" || d.step === "confirm") && d.label ? String(d.label).slice(0, 80) : steps && steps[d.step];
+                if (text && (sending || thinking)) showStep(text);
+              } catch {
+                // not ours
+              }
+              continue;
+            }
             // A teammate typing: show it for a few seconds, nothing to fetch.
             if (/^event: typing$/m.test(block)) {
               try {
