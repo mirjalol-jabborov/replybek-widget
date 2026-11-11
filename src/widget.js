@@ -509,10 +509,19 @@ import css from "./widget.css?inline";
     schedulePoll();
   }
 
+  // The visitor's time zone ("Asia/Tashkent"), so the AI agent knows their "today" and "tomorrow".
+  function timeZone() {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch {
+      return "";
+    }
+  }
+
   async function ensureConversation() {
     if (session.conversation_id) return;
     // After "Start a new chat", the new conversation is linked to the one left behind.
-    const base = { page: location.pathname.slice(0, 400), ...(session.previous ? { previous: session.previous } : {}) };
+    const base = { page: location.pathname.slice(0, 400), ...(timeZone() ? { timezone: timeZone() } : {}), ...(session.previous ? { previous: session.previous } : {}) };
     // If the API refuses what the page said about the visitor, the chat still starts without it.
     const r = await call("POST", "/conversations", { ...base, ...(who || {}) }).catch((e) => (e.status === 400 && who ? call("POST", "/conversations", base) : Promise.reject(e)));
     session = { conversation_id: r.conversation_id, visitor_token: r.visitor_token };
