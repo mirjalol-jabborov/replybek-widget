@@ -124,3 +124,15 @@ a.src-name:hover { text-decoration: underline; text-underline-offset: 2px; }
 .card-btn:disabled { opacity: 0.45; cursor: default; }
 .card-state { font-size: 12.5px; color: #4a4f57; }
 .card-state.done { color: #1c7a4a; }
+.pcards { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 4px -14px 0; padding: 2px 14px 6px; scrollbar-width: none; }
+.pcards::-webkit-scrollbar { display: none; }
+.pcard { flex: 0 0 148px; scroll-snap-align: start; display: flex; flex-direction: column; border: 1px solid #e8e8e6; border-radius: 14px; background: #fff; overflow: hidden; text-decoration: none; color: inherit; box-shadow: 0 1px 2px rgba(17, 18, 21, 0.04); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.pcard:hover { box-shadow: 0 6px 18px rgba(17, 18, 21, 0.08); }
+.pcard:active { transform: scale(0.98); }
+.pcards.one .pcard { flex-basis: 190px; }
+.pcard-photo { display: block; aspect-ratio: 4 / 5; background: #f4f4f2; }
+.pcard-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pcard-body { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px 10px; }
+.pcard-title { font-size: 13px; font-weight: 500; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pcard-sub { font-size: 12px; color: #868b93; }
+.pcard-price { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }

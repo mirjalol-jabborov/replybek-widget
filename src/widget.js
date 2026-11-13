@@ -693,6 +693,30 @@ import css from "./widget.css?inline";
           : h("div", { class: `card-state ${c.status === "done" ? "done" : ""}`, text: state || "" })
       );
     }
+    if (c.type === "products") {
+      // Things to look at (bouquets, products): a row of cards, each a link to its page. A page
+      // on this same site opens in place, so the chat follows the customer there.
+      const here = (u) => {
+        try {
+          return new URL(u).origin === location.origin;
+        } catch (e) {
+          return false;
+        }
+      };
+      const price = (i) => (i.price == null ? "" : typeof i.price === "number" ? i.price.toLocaleString("ru-RU").replace(/\u00a0/g, " ") + (i.currency ? " " + i.currency : "") : String(i.price));
+      return h(
+        "div",
+        { class: "pcards" + ((c.items || []).length === 1 ? " one" : "") },
+        (c.items || []).map((i) =>
+          h(
+            i.url ? "a" : "div",
+            { class: "pcard", href: i.url || null, target: i.url && !here(i.url) ? "_blank" : null, rel: i.url ? "noopener" : null },
+            h("span", { class: "pcard-photo" }, i.image ? h("img", { src: i.image, alt: "", loading: "lazy", decoding: "async" }) : null),
+            h("span", { class: "pcard-body" }, h("span", { class: "pcard-title", text: i.title }), i.subtitle ? h("span", { class: "pcard-sub", text: i.subtitle }) : null, price(i) ? h("span", { class: "pcard-price", text: price(i) }) : null)
+          )
+        )
+      );
+    }
     return null;
   }
 
