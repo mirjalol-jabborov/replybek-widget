@@ -422,6 +422,7 @@ import css from "./widget.css?inline";
     send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
     person: '<path d="M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Zm0 0a9 9 0 1 1 18 0m0 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3Z"/><path d="M21 16v2a4 4 0 0 1-4 4h-5"/>',
     chev: '<path d="m9 18 6-6-6-6"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
     lock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
     clip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
     file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
@@ -694,7 +695,7 @@ import css from "./widget.css?inline";
       );
     }
     if (c.type === "products") {
-      // Things to look at (bouquets, products): a row of cards, each a link to its page. A page
+      // Things to look at (products, listings, rooms…): a row of cards, each a link to its page. A page
       // on this same site opens in place, so the chat follows the customer there.
       const here = (u) => {
         try {
@@ -704,15 +705,53 @@ import css from "./widget.css?inline";
         }
       };
       const price = (i) => (i.price == null ? "" : typeof i.price === "number" ? i.price.toLocaleString("ru-RU").replace(/\u00a0/g, " ") + (i.currency ? " " + i.currency : "") : String(i.price));
+      // The business's button text, in the chat's language when it gave several.
+      const word = (v) => (v == null ? "" : typeof v === "string" ? v : v[LANG] || v.en || Object.values(v)[0] || "");
+      const button = (i, n) => {
+        if (!c.action || !i.args) return null;
+        const tap = (c.taps || {})[n];
+        const state = tap ? tap.status : null;
+        const key = `${m.id}:${n}`;
+        const many = Boolean(c.action.quantity);
+        const label = state === "done" ? (word(c.action.done) || t("confirmed")) + (many && tap.qty > 1 ? ` · ${tap.qty}` : "") : state === "failed" ? t("failed") : word(c.action.label);
+        const btn = h(
+          "button",
+          {
+            class: `pcard-btn${state === "done" ? " done" : ""}${state === "pending" ? " busy" : ""}`,
+            type: "button",
+            disabled: state === "done" || state === "pending" ? true : null,
+            onClick: (e) => cardAction(m, c, n, e.currentTarget, many ? qtys.get(key) || 1 : null),
+          },
+          state === "done" ? icon("check", 14) : null,
+          h("span", { text: label })
+        );
+        // How many: − 1 + above the button, until it's tapped.
+        if (!many || state === "done" || state === "pending") return h("div", { class: "pcard-act" }, btn);
+        const num = h("span", { class: "qty-n", text: String(qtys.get(key) || 1), "aria-live": "polite" });
+        const step = (d) => {
+          const v = Math.min(99, Math.max(1, (qtys.get(key) || 1) + d));
+          qtys.set(key, v);
+          num.textContent = String(v);
+          minus.disabled = v <= 1;
+        };
+        const minus = h("button", { class: "qty-b", type: "button", "aria-label": "−", disabled: (qtys.get(key) || 1) <= 1 ? true : null, onClick: () => step(-1) }, "−");
+        const plus = h("button", { class: "qty-b", type: "button", "aria-label": "+", onClick: () => step(1) }, "+");
+        return h("div", { class: "pcard-act" }, h("div", { class: "qty" }, minus, num, plus), btn);
+      };
       return h(
         "div",
-        { class: "pcards" + ((c.items || []).length === 1 ? " one" : "") },
-        (c.items || []).map((i) =>
+        { class: "pcards" + (c.layout === "list" ? " list" : (c.items || []).length === 1 ? " one" : "") },
+        (c.items || []).map((i, n) =>
           h(
-            i.url ? "a" : "div",
-            { class: "pcard", href: i.url || null, target: i.url && !here(i.url) ? "_blank" : null, rel: i.url ? "noopener" : null },
-            h("span", { class: "pcard-photo" }, i.image ? h("img", { src: i.image, alt: "", loading: "lazy", decoding: "async" }) : null),
-            h("span", { class: "pcard-body" }, h("span", { class: "pcard-title", text: i.title }), i.subtitle ? h("span", { class: "pcard-sub", text: i.subtitle }) : null, price(i) ? h("span", { class: "pcard-price", text: price(i) }) : null)
+            "div",
+            { class: "pcard" },
+            h(
+              i.url ? "a" : "div",
+              { class: "pcard-link", href: i.url || null, target: i.url && !here(i.url) ? "_blank" : null, rel: i.url ? "noopener" : null },
+              h("span", { class: "pcard-photo" }, i.image ? h("img", { src: i.image, alt: "", loading: "lazy", decoding: "async" }) : null),
+              h("span", { class: "pcard-body" }, h("span", { class: "pcard-title", text: i.title }), i.subtitle ? h("span", { class: "pcard-sub", text: i.subtitle }) : null, price(i) ? h("span", { class: "pcard-price", text: price(i) }) : null)
+            ),
+            button(i, n)
           )
         )
       );
@@ -735,7 +774,7 @@ import css from "./widget.css?inline";
       list.append(
         h(
           "div",
-          { class: `msg ${mine ? "me" : m.role === "human" ? "bot team" : "bot"}` },
+          { class: `msg ${mine ? "me" : m.role === "human" ? "bot team" : "bot"}${m.role === "ai" && m.card?.type === "products" ? " wide" : ""}` },
           who ? h("div", { class: "who", text: t("team", { name: config.display_name }) }) : null,
           m.body ? h("div", { class: "bubble", text: m.body }) : null,
           filesEl(m.attachments),
@@ -893,6 +932,7 @@ import css from "./widget.css?inline";
     sending = true;
     progress = null;
     input.value = "";
+    typedAt = 0; // the next keystroke is new typing, worth telling at once
     if (file) clearPending(true);
     // Show the visitor's message right away; the server's copy replaces it.
     const local = file ? [{ id: "local", local: file.url, name: file.file.name, type: file.file.type, size: file.file.size }] : [];
@@ -965,6 +1005,29 @@ import css from "./widget.css?inline";
       } else setTimeout(tick, 2000);
     };
     setTimeout(tick, 1000);
+  }
+
+  // A tap on a card's button runs that item's action; the tap is the customer's confirmation.
+  const qtys = new Map(); // how many the customer picked on each card, by message and card
+  async function cardAction(m, c, n, btn, qty) {
+    btn.disabled = true;
+    btn.classList.add("busy");
+    try {
+      const r = await call("POST", `/conversations/${session.conversation_id}/messages/${m.id}/cards/${n}/action`, qty ? { qty } : {}, session.visitor_token);
+      c.taps = { ...(c.taps || {}), [n]: { status: "pending", ...(qty ? { qty } : {}) } };
+      tapped = true;
+      absorb(r);
+      if (r.thinking) startActive();
+      else {
+        await poll();
+        await refreshCards();
+      }
+      render();
+    } catch (e) {
+      btn.disabled = false;
+      btn.classList.remove("busy");
+      showError(e.message);
+    }
   }
 
   async function decide(c, confirm, btn) {
@@ -1064,6 +1127,8 @@ import css from "./widget.css?inline";
   }
 
   // While the AI is working, poll quickly and execute any requests it hands us, until it replies.
+  // The reply ends it whichever fetch brings it (usually the live stream's), not only this loop's.
+  let activeDone = null;
   function startActive() {
     thinking = true;
     syncLive();
@@ -1071,19 +1136,40 @@ import css from "./widget.css?inline";
     if (activeTimer) return;
     const startedAt = Date.now();
     const aiAtStart = messages.filter((m) => m.role === "ai").length;
+    activeDone = () => (messages.filter((m) => m.role === "ai").length > aiAtStart && running.size === 0) || Date.now() - startedAt > 120000;
     const tick = async () => {
       await poll();
-      const replied = messages.filter((m) => m.role === "ai").length > aiAtStart;
-      if ((replied && running.size === 0) || Date.now() - startedAt > 120000) {
-        thinking = false;
-        activeTimer = null;
-        if (open) render();
-        schedulePoll();
-        return;
-      }
+      if (!thinking) return;
+      if (activeDone()) return endActive();
       activeTimer = setTimeout(tick, liveUp ? 4000 : 900);
     };
     activeTimer = setTimeout(tick, 600);
+  }
+  function endActive() {
+    thinking = false;
+    clearTimeout(activeTimer);
+    activeTimer = null;
+    activeDone = null;
+    if (open) render();
+    schedulePoll();
+    if (tapped) refreshCards();
+  }
+
+  // A card button's result is written on its (older) message, which the usual fetch of new
+  // messages doesn't bring back: once the reply is in, the cards are read again.
+  let tapped = false;
+  async function refreshCards() {
+    tapped = false;
+    try {
+      const r = await call("GET", `/conversations/${session.conversation_id}/messages`, null, session.visitor_token);
+      for (const m of r.messages || []) {
+        const mine = messages.find((x) => x.id === m.id);
+        if (mine && m.card) mine.card = m.card;
+      }
+      if (open) render();
+    } catch {
+      // the next open shows it
+    }
   }
 
   // One fetch at a time; a request for another while one runs fetches once more after it.
@@ -1115,6 +1201,7 @@ import css from "./widget.css?inline";
       const before = messages.length;
       absorb(r);
       for (const tc of r.pending || []) runToolCall(tc);
+      if (thinking && activeDone && activeDone()) return endActive();
       if (open && (messages.length !== before || r.status !== status)) render();
       else if (open) render();
     } catch (e) {

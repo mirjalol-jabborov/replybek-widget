@@ -28,6 +28,9 @@ button { font: inherit; cursor: pointer; touch-action: manipulation; }
 .msg { display: flex; flex-direction: column; gap: 3px; max-width: 84%; flex: none; }
 .msg.bot { align-self: flex-start; }
 .msg.me { align-self: flex-end; align-items: flex-end; }
+/* A reply with product cards spans the chat so the card row runs edge to edge; its text keeps the usual width. */
+.msg.wide { max-width: none; align-self: stretch; }
+.msg.wide > .bubble { align-self: flex-start; max-width: 84%; }
 .bubble { padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
 .msg.bot .bubble { background: #f4f4f2; color: #111215; border-end-start-radius: 6px; }
 .msg.team .bubble { background: #fff; box-shadow: inset 0 0 0 1px #e8e8e6; }
@@ -124,11 +127,35 @@ a.src-name:hover { text-decoration: underline; text-underline-offset: 2px; }
 .card-btn:disabled { opacity: 0.45; cursor: default; }
 .card-state { font-size: 12.5px; color: #4a4f57; }
 .card-state.done { color: #1c7a4a; }
-.pcards { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 4px -14px 0; padding: 2px 14px 6px; scrollbar-width: none; }
+/* The row runs edge to edge; the first card lines up with the messages (snapping keeps the padding). */
+.pcards { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 14px; margin: 6px -14px 0; padding: 2px 14px 6px; scrollbar-width: none; }
 .pcards::-webkit-scrollbar { display: none; }
 .pcard { flex: 0 0 148px; scroll-snap-align: start; display: flex; flex-direction: column; border: 1px solid #e8e8e6; border-radius: 14px; background: #fff; overflow: hidden; text-decoration: none; color: inherit; box-shadow: 0 1px 2px rgba(17, 18, 21, 0.04); transition: transform 0.15s ease, box-shadow 0.15s ease; }
 .pcard:hover { box-shadow: 0 6px 18px rgba(17, 18, 21, 0.08); }
-.pcard:active { transform: scale(0.98); }
+.pcard-link { display: flex; flex-direction: column; flex: 1; text-decoration: none; color: inherit; }
+.pcard-link:active { opacity: 0.85; }
+/* The card's button: in the business's accent, it keeps its height through every state. */
+.pcard-act { display: flex; flex-direction: column; gap: 6px; margin: 0 8px 8px; }
+.qty { display: flex; align-items: center; justify-content: space-between; height: 30px; border-radius: 10px; background: #f4f4f2; }
+.qty-b { width: 34px; height: 30px; border: 0; background: transparent; color: #111215; font: inherit; font-size: 17px; line-height: 1; border-radius: 10px; touch-action: manipulation; }
+.qty-b:active:not(:disabled) { background: #e8e8e6; }
+.qty-b:disabled { color: #c4c6ca; }
+.qty-n { min-width: 20px; text-align: center; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pcard-btn { margin: 0; height: 34px; border: 0; border-radius: 10px; background: var(--w-accent); color: #fff; font: inherit; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; touch-action: manipulation; transition: opacity 0.15s ease, transform 0.12s ease, background 0.2s ease; }
+.pcard-btn:active:not(:disabled) { transform: scale(0.97); }
+.pcard-btn.busy { opacity: 0.6; }
+.pcard-btn.done { background: #f4f4f2; color: #1c7a4a; opacity: 1; }
+.pcard-btn:disabled { cursor: default; }
+.pcard-btn:focus-visible { outline: 2px solid var(--w-accent); outline-offset: 2px; }
+/* list: wide cards one under another; photo on the left, the button on the right. */
+.pcards.list { flex-direction: column; overflow: visible; scroll-snap-type: none; margin: 4px 0 0; padding: 0 0 4px; }
+.pcards.list .pcard { flex: none; flex-direction: row; align-items: center; }
+.pcards.list .pcard-link { flex-direction: row; align-items: center; min-width: 0; }
+.pcards.list .pcard-photo { width: 76px; flex: none; aspect-ratio: 1; margin: 7px; border-radius: 10px; overflow: hidden; }
+.pcards.list .pcard-body { flex: 1; min-width: 0; padding: 6px 8px 6px 3px; gap: 3px; }
+.pcards.list .pcard-act { flex: none; width: 112px; margin: 0 10px 0 0; }
+.pcard-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pcards.list .pcard-btn { padding: 0 12px; height: 32px; }
 .pcards.one .pcard { flex-basis: 190px; }
 .pcard-photo { display: block; aspect-ratio: 4 / 5; background: #f4f4f2; }
 .pcard-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
