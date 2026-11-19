@@ -5,6 +5,9 @@
 // window.Replybek.identify({ user_id, name, email, phone, avatar, company: { id, name, plan,
 // website }, attributes: { … } }) tells the team who a signed-in visitor is; .reset() forgets the chat
 // on sign-out; the "replybek:unread" event ({ detail: { count } }) feeds a page's own badge.
+// A shop whose CRM sends "Add to cart" to its website's cart (config.cart.url): on a page of that
+// site the widget posts { product, variant, qty, title } there with the visitor's cookies and, on a
+// 2xx, fires "replybek:cart" ({ detail: { product, variant, qty, title } }) for the page's badge.
 // Everything renders inside a shadow root, so the host page's CSS can't affect it (and vice versa).
 // Visitor text is only ever inserted with textContent, never as HTML.
 import css from "./widget.css?inline";
@@ -713,6 +716,7 @@ import css from "./widget.css?inline";
         const state = tap ? tap.status : null;
         const key = `${m.id}:${n}`;
         const many = Boolean(c.action.quantity);
+        const most = Math.min(99, Number(c.action.max) || 99);
         const label = state === "done" ? (word(c.action.done) || t("confirmed")) + (many && tap.qty > 1 ? ` · ${tap.qty}` : "") : state === "failed" ? t("failed") : word(c.action.label);
         const btn = h(
           "button",
@@ -729,10 +733,11 @@ import css from "./widget.css?inline";
         if (!many || state === "done" || state === "pending") return h("div", { class: "pcard-act" }, btn);
         const num = h("span", { class: "qty-n", text: String(qtys.get(key) || 1), "aria-live": "polite" });
         const step = (d) => {
-          const v = Math.min(99, Math.max(1, (qtys.get(key) || 1) + d));
+          const v = Math.min(most, Math.max(1, (qtys.get(key) || 1) + d));
           qtys.set(key, v);
           num.textContent = String(v);
           minus.disabled = v <= 1;
+          plus.disabled = v >= most;
         };
         const minus = h("button", { class: "qty-b", type: "button", "aria-label": "−", disabled: (qtys.get(key) || 1) <= 1 ? true : null, onClick: () => step(-1) }, "−");
         const plus = h("button", { class: "qty-b", type: "button", "aria-label": "+", onClick: () => step(1) }, "+");
@@ -1009,11 +1014,41 @@ import css from "./widget.css?inline";
 
   // A tap on a card's button runs that item's action; the tap is the customer's confirmation.
   const qtys = new Map(); // how many the customer picked on each card, by message and card
+  // The website's own cart, when the CRM sends "Add to cart" there and this page is on that site.
+  function siteCartUrl() {
+    try {
+      const u = config.cart && new URL(config.cart.url);
+      return u && u.origin === location.origin ? u.href : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  // Answers { placed: "site" } when the site's cart took it, { placed: "site", refused } when it
+  // said why not ({ error } with a 4xx), and null otherwise: then the chat's own cart takes it.
+  async function toSiteCart(c, n, qty) {
+    const i = c.items[n];
+    const url = c.action.crm && i.args && i.args.variant ? siteCartUrl() : null;
+    if (!url) return null;
+    const item = { product: i.args.product, variant: i.args.variant, qty: qty || 1, title: i.title };
+    try {
+      const res = await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(item) });
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent("replybek:cart", { detail: item }));
+        return { placed: "site" };
+      }
+      const said = res.status >= 400 && res.status < 500 ? await res.json().catch(() => null) : null;
+      if (said && typeof said.error === "string") return { placed: "site", refused: said.error.toLowerCase().replace(/[^a-z_]/g, "").slice(0, 40) || "refused" };
+    } catch (e) {
+      // The site didn't answer: the chat's own cart takes it.
+    }
+    return null;
+  }
   async function cardAction(m, c, n, btn, qty) {
     btn.disabled = true;
     btn.classList.add("busy");
     try {
-      const r = await call("POST", `/conversations/${session.conversation_id}/messages/${m.id}/cards/${n}/action`, qty ? { qty } : {}, session.visitor_token);
+      const site = await toSiteCart(c, n, qty);
+      const r = await call("POST", `/conversations/${session.conversation_id}/messages/${m.id}/cards/${n}/action`, { ...(qty ? { qty } : {}), ...(site || {}) }, session.visitor_token);
       c.taps = { ...(c.taps || {}), [n]: { status: "pending", ...(qty ? { qty } : {}) } };
       tapped = true;
       absorb(r);
